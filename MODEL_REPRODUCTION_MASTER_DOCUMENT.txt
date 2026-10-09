@@ -1,0 +1,264 @@
+====================================================================================================
+MASTER TECHNICAL DOCUMENTATION: REPRODUCED BAYESIAN & BASELINE MODELS
+PROBABILISTIC STOCK PRICE FORECASTING AND UNCERTAINTY QUANTIFICATION
+====================================================================================================
+
+REFERENCE RESEARCH PAPER:
+  Authors:    Ndivhuwo Nelufhangani and Daniel Maposa
+  Title:      Bayesian Deep Learning and Probabilistic Forecasting of Stock Prices
+  Journal:    Algorithms (MDPI), 2026, Volume 19, Issue 5, Article 391
+  DOI:        https://doi.org/10.3390/a19050391
+  Equities:   Johannesburg Stock Exchange (JSE) - FirstRand Limited (FSR.JO) & Discovery Limited (DSY.JO)
+  Study Span: January 2005 - May 2025 (5,187 daily observations)
+
+====================================================================================================
+TABLE OF CONTENTS
+====================================================================================================
+1. PROJECT OVERVIEW & REPRODUCED MODELS SUMMARY
+2. DATA PIPELINE & FEATURE ENGINEERING WORKFLOW
+3. MODEL 1: BAYESIAN NEURAL NETWORK (BNN) VIA BAYES BY BACKPROP
+4. MODEL 2: BAYESIAN LSTM WITH MONTE CARLO DROPOUT
+5. MODEL 3: GAUSSIAN PROCESS REGRESSION (GPR)
+6. MODEL 4: STANDARD DETERMINISTIC LSTM (BASELINE)
+7. MODEL 5: ARIMA STATISTICAL BASELINE (WALK-FORWARD ROLLING)
+8. MATHEMATICAL FORMULATIONS & EQUATIONS
+9. SUMMARY OF OPTIMIZERS, HYPERPARAMETERS, AND METHODS
+10. THREE-WAY PROGRESSION & EMPIRICAL RESULTS (BASELINE vs TUNED vs PAPER)
+11. METHODOLOGICAL DEVIATIONS & TUNING SUMMARY
+12. EXECUTION WORKFLOW & SCRIPT REFERENCE
+====================================================================================================
+
+
+====================================================================================================
+1. PROJECT OVERVIEW & REPRODUCED MODELS SUMMARY
+====================================================================================================
+
+The goal of this reproduction is to evaluate probabilistic time-series forecasting frameworks 
+that provide both accurate point forecasts and calibrated uncertainty estimates (95% confidence intervals).
+
+Two equities with contrasting market behavior were analyzed:
+  1. FirstRand Limited (FSR.JO): Large-cap, stable banking equity with high liquidity and lower price dispersion.
+  2. Discovery Limited (DSY.JO): High-volatility, growth-oriented financial services equity with large swings.
+
+Five distinct model architectures were implemented and evaluated across 10 random seeds (42..51):
+  1. Bayesian Neural Network (BNN): Multi-layer perceptron with variational Gaussian distributions over weights/biases (Bayes by Backprop, 200 epochs, S=100 MC samples).
+  2. Bayesian LSTM: Recurrent neural network utilizing Monte Carlo Dropout at train and test time (100 epochs, S=100 MC samples, p=0.2).
+  3. Gaussian Process Regression (GPR): Non-parametric Bayesian model with composite RBF + WhiteKernel and exact marginal likelihood inference.
+  4. Standard LSTM: Deterministic 2-layer stacked recurrent baseline with fixed test-time inference (100 epochs, eval inference).
+  5. ARIMA(1, 1, 1): Classical linear autoregressive integrated moving average baseline with 1-step walk-forward rolling inference.
+
+
+====================================================================================================
+2. DATA PIPELINE & FEATURE ENGINEERING WORKFLOW
+====================================================================================================
+
+The data processing pipeline follows strict temporal discipline to eliminate lookahead bias and data leakage:
+
+Step 2.1: Data Ingestion
+  - Data downloaded via Yahoo Finance ('yfinance') for tickers 'FSR.JO' and 'DSY.JO'.
+  - Raw columns: Date, Open, High, Low, Close, Volume.
+  - Raw sample size: 5,187 daily market observations (January 2005 to May 2025).
+
+Step 2.2: Technical Feature Engineering (11 Input Features)
+  For every time step, 11 technical indicators are computed:
+  1. Open: Daily opening price
+  2. High: Daily maximum price
+  3. Low: Daily minimum price
+  4. Close: Daily closing settlement price
+  5. Volume: Daily traded share volume
+  6. RSI (14-period): Wilder's Exponential Smoothing Relative Strength Index:
+       delta = Close_t - Close_{t-1}
+       Gain = ewm(delta.where(delta > 0, 0), alpha=1/14, min_periods=14)
+       Loss = ewm((-delta).where(delta < 0, 0), alpha=1/14, min_periods=14)
+       RS = Gain / Loss
+       RSI = 100 - (100 / (1 + RS))
+  7. MACD (12, 26, 9): Moving Average Convergence Divergence trend indicator:
+       MACD_line = EMA_12(Close) - EMA_26(Close)
+       Signal_line = EMA_9(MACD_line)
+  8. SMA_20: 20-day Simple Moving Average
+  9. EMA_20: 20-day Exponential Moving Average
+  10. BB_Upper: 20-day Bollinger Upper Band = SMA_20 + 2.0 * Rolling_Std_20(Close)
+  11. BB_Lower: 20-day Bollinger Lower Band = SMA_20 - 2.0 * Rolling_Std_20(Close)
+
+Step 2.3: Warmup Cleansing
+  - The first 20 rows are dropped due to NaN values in 20-period rolling windows (SMA, BB, EMA).
+  - Usable dataset size: Exactly 5,167 daily records.
+
+Step 2.4: Chronological Data Split (60% / 20% / 20%)
+  No random shuffling is applied (maintaining strict temporal order):
+  - Training Partition:   First 60%  = 3,100 rows
+  - Validation Partition: Next 20%   = 1,033 rows
+  - Testing Partition:    Final 20%  = 1,034 rows
+
+Step 2.5: Feature Normalization (Z-Score Standardization)
+  - Formula: X_scaled = (X - mu_train) / sigma_train
+  - mu_train and sigma_train are calculated exclusively on the 3,100 training samples.
+
+Step 2.6: Lookback Sliding Window Construction (Window Size = 60 days)
+  - 3D Sequential Data (for Bayesian LSTM & Standard LSTM):
+      Training Windows:   3,040 samples (Shape: 3040 x 60 x 11)
+      Validation Windows: 1,033 samples (Shape: 1033 x 60 x 11)
+      Testing Windows:    1,034 samples (Shape: 1034 x 60 x 11)
+  - Flattened Representation (for BNN & GPR):
+      Training:   3,040 samples (Shape: 3040 x 660)
+      Validation: 1,033 samples (Shape: 1033 x 660)
+      Testing:    1,034 samples (Shape: 1034 x 660)
+
+Step 2.7: Target Variable Formulation (Stationary Relative Delta)
+  - Target: Relative 1-step price change delta_y = (Close_{t+1} - Close_t) / sigma_delta_train
+  - Reconstructed Price: Close_hat_{t+1} = Close_t + delta_hat * sigma_delta_train
+
+
+====================================================================================================
+3. MODEL 1: BAYESIAN NEURAL NETWORK (BNN) VIA BAYES BY BACKPROP
+====================================================================================================
+
+Architecture (Section 2.3):
+  - Input Layer: 660 features (60 lookback days * 11 features)
+  - Hidden Layer 1: 64 variational neurons + ReLU + Dropout (p = 0.1)
+  - Hidden Layer 2: 32 variational neurons + ReLU + Dropout (p = 0.1)
+  - Output Layer: 1 linear variational unit
+  - Variational Distribution: Gaussian q(w) = N(mu, sigma^2), where sigma = softplus(rho)
+  - Prior Distribution: Standard Gaussian p(w) = N(0, 1)
+
+Training & Loss:
+  - Loss Function: Evidence Lower Bound (ELBO) = MSE + beta * KL(q || p), beta = 0.001
+  - Optimizer: Adam (lr = 0.001, batch_size = 32, max_epochs = 200 with validation early stopping)
+
+Inference:
+  - S = 100 Monte Carlo draws from the variational posterior
+  - Predictive Mean: mu* = (1/S) * sum_{s=1..S} y_s
+  - Predictive Variance: sigma_total^2 = sigma_MC^2 + sigma_res_val^2
+  - 95% Confidence Interval: [mu* - 1.96 * sigma_total, mu* + 1.96 * sigma_total]
+
+
+====================================================================================================
+4. MODEL 2: BAYESIAN LSTM WITH MONTE CARLO DROPOUT
+====================================================================================================
+
+Architecture (Section 2.4):
+  - Input: 3D sequence (Batch, 60 time steps, 11 features)
+  - Stacked LSTM Layer 1: 50 hidden units + Dropout (p = 0.2)
+  - Stacked LSTM Layer 2: 50 hidden units + Dropout (p = 0.2)
+  - Dense Output: 1 linear unit
+
+Training & Inference:
+  - Criterion: Smooth L1 (Huber) Loss
+  - Optimizer: Adam (lr = 0.001, batch_size = 32, max_epochs = 100 with validation early stopping)
+  - MC Dropout Inference: Dropout kept active during evaluation (force_dropout = True)
+  - S = 100 stochastic forward passes to evaluate epistemic uncertainty.
+  - Predictive Variance: sigma_total^2 = sigma_MC^2 + sigma_res_val^2
+
+
+====================================================================================================
+5. MODEL 3: GAUSSIAN PROCESS REGRESSION (GPR)
+====================================================================================================
+
+Formulation (Section 2.5):
+  - Composite Covariance Kernel: k(x, x') = k_RBF(x, x') + k_White(x, x')
+  - RBF Kernel: length_scale = 10.0
+  - White Noise Kernel: noise_level = 1e-3
+  - Training: Maximizes log marginal likelihood via L-BFGS-B with random restarts.
+  - Inference: Predictive distribution y* ~ N(mu*, sigma_total^2).
+
+
+====================================================================================================
+6. MODEL 4: STANDARD DETERMINISTIC LSTM (BASELINE)
+====================================================================================================
+
+Architecture & Training (Table 12 baseline):
+  - Two stacked LSTM layers (50 units each) + Linear output
+  - Regularization: Dropout (p = 0.2) during training
+  - Inference: Deterministic forward pass with dropout deactivated (eval mode)
+  - Optimizer: Adam (lr = 0.001, 100 epochs with early stopping, batch_size = 32)
+
+
+====================================================================================================
+7. MODEL 5: ARIMA STATISTICAL BASELINE (WALK-FORWARD)
+====================================================================================================
+
+Specification (Section 1.2, Table 12):
+  - Order: ARIMA(1, 1, 1)
+  - Walk-forward 1-step rolling inference updating across test observations.
+
+
+====================================================================================================
+8. MATHEMATICAL FORMULATIONS & EQUATIONS
+====================================================================================================
+
+Point Forecast Metrics:
+  - MAE  = (1/n) * sum |y_i - y^_i|
+  - RMSE = sqrt( (1/n) * sum (y_i - y^_i)^2 )
+  - MSE  = (1/n) * sum (y_i - y^_i)^2
+
+Uncertainty Quantification Metrics:
+  - PICP (Prediction Interval Coverage Probability, 95% nominal):
+      PICP = (1/n) * sum I(y_i in [l^_i, u^_i])
+  - MPIW (Mean Prediction Interval Width):
+      MPIW = (1/n) * sum (u^_i - l^_i)
+
+
+====================================================================================================
+9. SUMMARY OF OPTIMIZERS, HYPERPARAMETERS, AND METHODS
+====================================================================================================
+
+| Model | Optimizer / Method | Epochs / Restarts | Batch Size | Learning Rate | MC Samples |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **BNN (BBB)** | Adam + Variational ELBO (beta=0.001) | 200 max (Early stop) | 32 | 0.001 | S = 100 |
+| **Bayesian LSTM** | Adam + Smooth L1 Loss | 100 max (Early stop) | 32 | 0.001 | S = 100 |
+| **Standard LSTM** | Adam + Smooth L1 Loss | 100 max (Early stop) | 32 | 0.001 | N/A (Eval) |
+| **GPR** | L-BFGS-B Log-Marginal-Likelihood | 2 restarts | Full batch | N/A | Analytical |
+| **ARIMA** | Walk-forward Rolling Likelihood | (1, 1, 1) | N/A | N/A | Analytical |
+
+
+====================================================================================================
+10. THREE-WAY PROGRESSION & EMPIRICAL RESULTS (10-SEED EVALUATION)
+====================================================================================================
+
+Table: Baseline Run vs Tuned Run (10-Seed Mean) vs Published Paper Target
+
+FirstRand:
+  - GPR:           Baseline MAE 182.40 -> Tuned MAE 81.87  (Paper: 72.27) | PICP 0.97 (Paper: 0.94)
+  - Bayesian LSTM: Baseline MAE 945.03 -> Tuned MAE 83.07  (Paper: 133.49)| PICP 0.96 (Paper: 0.96)
+  - BNN:           Baseline MAE 351.76 -> Tuned MAE 82.36  (Paper: 63.78) | PICP 0.96 (Paper: 0.95)
+  - Standard LSTM: Baseline MAE 769.98 -> Tuned MAE 82.97  (Paper: 89.14)
+  - ARIMA:         Baseline MAE 1585.71-> Tuned MAE 81.65  (Paper: 198.43)
+
+Discovery:
+  - GPR:           Baseline MAE 904.21 -> Tuned MAE 166.42 (Paper: 115.15)| PICP 0.98 (Paper: 0.92)
+  - Bayesian LSTM: Baseline MAE 1090.08-> Tuned MAE 176.36 (Paper: 337.39)| PICP 0.97 (Paper: 0.95)
+  - BNN:           Baseline MAE 956.78 -> Tuned MAE 175.40 (Paper: 144.56)| PICP 0.97 (Paper: 0.94)
+  - Standard LSTM: Baseline MAE 726.91 -> Tuned MAE 171.66 (Paper: 189.73)
+  - ARIMA:         Baseline MAE 3000.48-> Tuned MAE 166.75 (Paper: 412.56)
+
+
+====================================================================================================
+11. METHODOLOGICAL DEVIATIONS & TUNING SUMMARY
+====================================================================================================
+
+1. Stationary Delta Price Targeting:
+   Predicts 1-step price delta relative to the last known Close in the 60-day window, resolving
+   the extrapolation breakdown when test prices exceed training maximums.
+2. Aleatoric + Epistemic Uncertainty Integration:
+   Incorporates validation residual standard deviation into predictive interval estimation,
+   restoring nominal ~0.95 PICP coverage.
+3. ARIMA 1-Step Rolling Walk-Forward:
+   Evaluated with standard 1-step rolling updates.
+4. Validation-Only Selection:
+   All hyperparameter tuning (logged to outputs/tuning_log.csv across 40 trials) was performed
+   strictly on the validation partition without test feedback.
+
+
+====================================================================================================
+12. EXECUTION WORKFLOW & SCRIPT REFERENCE
+====================================================================================================
+
+Step 1: Train all models across 10 random seeds:
+  python train_and_evaluate.py --all
+
+Step 2: Generate all tables, figures, and side-by-side comparison:
+  python generate_paper_results.py
+
+Step 3: Verify reproduction integrity:
+  python verify_reproduction.py
+====================================================================================================

@@ -1,0 +1,322 @@
+=== Page 3 ===
+Algorithms 2026, 19, 391 3 of 19
+sive comparison of deep learning and machine learning algorithms, showing that LSTM
+performed best, followed by SVMs, with ANNs and RF lagging behind.
+Bayesian approaches cast forecasting as probabilistic inference, explicitly modeling
+uncertainty. The BNN is a neural network with weight distributions instead of point
+weights [9,14]. During training, Bayesian inference learns a posterior distribution over
+weights, and thus predictions are distributions. This sampling scheme enables efficient
+posterior inference despite the high-dimensional parameter space.
+The GPR represents a foundational technique in Bayesian machine learning, offering a
+non-parametric, probabilistic framework for regression tasks [1]. Unlike traditional models
+that provide single-point estimates, GPR defines a distribution over functions, allowing
+each prediction to be accompanied by an explicit measure of uncertainty. Recent studies
+have explored GPR in financial forecasting with promising results [10,15].
+The integration of Bayesian inference into the LSTM architecture has led to Bayesian
+LSTM models that combine the sequential learning capabilities of LSTMs with the uncer-
+tainty modeling strengths of Bayesian methods [8,16]. Ref. [ 8] demonstrated that Bayesian
+LSTM consistently outperformed both RNNs and standard LSTM in terms of the Mean
+Absolute Error (MAE), Root Mean Squared Error (RMSE), and Mean Squared Error (MSE)
+while producing well-calibrated prediction intervals.
+A structured synthesis of the existing literature reveals three recurring themes: (1) the
+superiority of deep learning over classical statistical models for nonlinear financial data;
+(2) the advantage of Bayesian over deterministic approaches in terms of uncertainty quan-
+tification; and (3) the lack of standardized comparative studies across Bayesian methods on
+the same dataset. Table 1 summarizes the representative studies across these themes.
+Table 1. Summary of representative studies on Bayesian and machine learning approaches to stock
+price forecasting.
+Study Method Dataset Key Finding Limitation
+[9] BNN
+US stocks
+(pre/post
+COVID-19)
+BNNs
+outperform
+deterministic
+models in
+volatile periods
+Single model
+evaluated
+[8] Bayesian LSTM CRSP (US)
+Bayesian LSTM
+outperforms
+standard LSTM
+on MAE and
+RMSE
+No comparison
+with BNN or
+GPR
+[15]. GPR SET (Thailand)
+GPR yields
+well-calibrated
+intervals in
+stable regimes
+Does not address
+volatile stocks
+[13] LSTM, SVM,
+ANN, RF
+Tehran Stock
+Exchange
+LSTM best
+among
+deterministic
+models
+No uncertainty
+quantification
+Present study GPR, Bayesian
+LSTM, BNN
+JSE (South
+Africa)
+BNNs achieve
+best accuracy–
+uncertainty
+trade-off
+Limited to two
+JSE-listed
+companies
+Despite these advancements, several research gaps remain. Many AI models, including
+deep learning, are difficult to interpret and often ignore uncertainty in their predictions.
+Crucially, GPR, Bayesian LSTM, and BNNs have typically been studied in isolation; no
+https://doi.org/10.3390/a19050391
+
+=== Page 8 ===
+Algorithms 2026, 19, 391 8 of 19
+Root mean square error (RMSE):
+RMSE =
+s
+1
+n
+n
+∑
+i=1
+(yi− ˆyi)2. (19)
+2.7. Uncertainty Quantification Metrics
+To provide a rigorous quantitative evaluation of the probabilistic outputs, two addi-
+tional metrics were used [8].
+The prediction interval coverage probability (PICP) measures the proportion of actual
+observations that fall within the predicted 95% confidence interval:
+PICP = 1
+n
+n
+∑
+i=1
+1
+h
+yi∈ [ˆli, ˆui]
+i
+. (20)
+A well-calibrated model should yield a PICP≈ 0.95 for a 95% interval.
+The mean prediction interval width (MPIW) measures the average width of the pre-
+dictive intervals, reflecting the sharpness of the uncertainty estimates:
+MPIW = 1
+n
+n
+∑
+i=1
+( ˆui− ˆli). (21)
+A lower MPIW indicates sharper (more informative) intervals, provided that the PICP
+remains at or near the nominal coverage level. Together, the PICP and MPIW allow for
+a more complete assessment of uncertainty calibration beyond qualitative inspection of
+forecast plots.
+3. Results
+3.1. Exploratory Data Analysis
+Table 2 presents the descriptive statistics of the FirstRand stock dataset from January
+2005 to June 2025. The results indicate substantial variability in stock prices over the study
+period, reflecting the dynamic nature of financial markets.
+Table 2. Descriptive statistics of FirstRand stock dataset.
+Variable Count Mean Std Min 25% 50% 75% Max
+Close 5187 4002.92 2185.64 890.07 1705.38 4164.21 6091.26 8684.13
+High 5187 4053.65 2210.83 925.96 1731.50 4228.97 6168.51 8916.99
+Low 5187 3948.56 2160.34 842.21 1681.24 4075.41 6021.38 8604.17
+Open 5187 4000.45 2183.12 877.31 1706.67 4158.00 6091.20 8784.07
+Volume 5187 13,900,000 9,230,000 0.00 8,420,000 11,900,000 16,900,000 132,000,000
+RSI 5187 51.85 10.40 12.54 44.66 52.07 59.46 81.11
+MACD 5187 8.60 77.75 −594.19 −25.90 10.43 45.26 297.14
+Note: Closing price mean of approximately 4003 with substantial variation highlights long-term growth and
+high volatility.
+3.1.1. FirstRand Limited Descriptive Statistics
+Figure 1 illustrates the historical closing price movement of FirstRand from 2005 to
+2025. The series displays a clear long-term upward trend accompanied by periods of
+elevated volatility, particularly during major market disruptions such as the 2008 global
+financial crisis and the COVID-19 pandemic period.
+https://doi.org/10.3390/a19050391
+
+=== Page 9 ===
+Algorithms 2026, 19, 391 9 of 19
+Figure 1. FirstRand stock closing prices over time (January 2005–June 2025).
+3.1.2. Discovery Limited Descriptive Statistics
+Table 3 presents the descriptive statistics for Discovery Limited which reveal substan-
+tially higher price variability compared with FirstRand. The closing price exhibited a mean
+of 9117.58 and a large standard deviation of 5403.80, indicating pronounced fluctuations
+over the study period. The wide range between the minimum and maximum closing
+prices suggests the presence of multiple volatility regimes and rapid price movements
+characteristic of growth-oriented financial stocks.
+Table 3. Descriptive statistics of Discovery stock dataset.
+Variable Count Mean Std Min 25% 50% 75% Max
+Close 5187 9,117.58 5403.80 1692.15 3306.50 10,331.85 13,580.58 22,189.00
+High 5187 9244.15 5483.86 1701.88 3337.14 10,548.90 13,743.46 24,956.83
+Low 5187 8987.35 5324.72 1691.18 3288.02 10,142.05 13,406.83 22,105.00
+Open 5187 9116.15 5402.58 1701.88 3310.88 10,310.23 13,570.34 22,400.00
+Volume 5187 1.23× 106 1.00× 106 0.00 6.08× 105 1.06× 106 1.58× 106 1.44× 107
+RSI 5187 52.82 12.18 14.05 44.69 53.10 61.33 89.23
+MACD 5187 26.32 207.93 −1228.18 −38.94 22.64 107.47 800.43
+Figure 2 shows the historical closing price trajectory of Discovery Limited over the
+study period. Compared with FirstRand, the Discovery series demonstrates more pro-
+nounced volatility and sharper fluctuations, particularly during periods of market uncer-
+tainty. Although the stock exhibits an overall upward long-term trend, the larger amplitude
+of price swings indicates a more unstable and risk-sensitive trading pattern.
+Figure 2. Discovery stock closing prices over time (January 2005–June 2025).
+https://doi.org/10.3390/a19050391
+
+=== Page 11 ===
+Algorithms 2026, 19, 391 11 of 19
+3.2. Gaussian Process Regression Results
+Table 4 summarizes the point forecast errors for GPR on both stocks. GPR per-
+formed substantially better on FirstRand (MAE = 72.27, RMSE = 102.80) than on Discovery
+(MAE = 115.15, RMSE = 226.19), a difference of approximately 59% in the RMSE. This
+disparity is consistent with GPR’s known behavior; the RBF kernel is well suited to smooth,
+slowly varying price series, but the cubic cost of kernel matrix inversion (O(n3)) limits
+the effective lookback window, reducing the model’s capacity to track rapid fluctuations.
+Table 5 provides a sample of the actual versus predicted values with 95% confidence
+intervals, and Figures 5 and 6 presents the corresponding forecast plots.
+Table 4. GPR test performance metrics for FirstRand and Discovery.
+Company MAE RMSE MSE
+FirstRand 72.27 102.80 10,567.75
+Discovery 115.15 226.19 51,161.02
+Table 5. GPR actual vs. predicted values with 95% confidence intervals.
+FirstRand Discovery
+Date Actual Predicted (95% CI) Date Actual Predicted (95% CI)
+2021-04-26 5048.18 5061.84 (5019.03, 5104.66) 2021-04-26 13,161.46 13,135.92 (12,847.23, 13,424.61)
+2021-04-28 5144.97 5142.05 (5099.33, 5184.77) 2021-04-28 13,151.46 13,143.10 (12,854.18, 13,432.02)
+2021-04-29 5310.61 5306.91 (5263.90, 5349.91) 2021-04-29 13,173.46 13,312.79 (13,018.45, 13,607.13)
+2021-04-30 5093.08 5278.54 (5145.17, 5411.92) 2021-04-30 13,196.45 13,099.82 (12,810.56, 13,389.08)
+2021-05-03 4979.33 4998.74 (4955.93, 5041.54) 2021-05-03 13,214.45 13,263.59 (12,972.45, 13,554.73)
+2021-05-04 4944.40 4955.85 (4913.12, 4998.59) 2021-05-04 13,352.41 13,447.38 (13,154.36, 13,740.40)
+2021-05-05 5112.04 5077.24 (5034.49, 5120.00) 2021-05-05 13,771.30 13,736.31 (13,438.21, 14,034.41)
+2021-05-06 5232.78 5240.03 (5197.11, 5282.95) 2021-05-06 14,131.20 14,183.20 (13,877.64, 14,488.76)
+2021-05-07 5313.61 5308.10 (5265.22, 5350.98) 2021-05-07 14,438.12 14,373.84 (14,065.32, 14,682.36)
+2021-05-10 5357.51 5368.45 (5325.56, 5411.33) 2021-05-10 14,335.15 14,459.49 (14,148.95, 14,770.03)
+Figure 5. FirstRand GPR forecast.
+https://doi.org/10.3390/a19050391
+
+=== Page 12 ===
+Algorithms 2026, 19, 391 12 of 19
+Figure 6. Discovery GPR forecast.
+3.3. Bayesian LSTM Results
+The Bayesian LSTM results reveal a clear trade-off between point forecast precision
+and uncertainty coverage. For FirstRand (Figure 7), the model achieved an MAE of 133.49
+and RMSE of 175.21, higher than both GPR and the BNN as shown in Table 6. For Discovery
+(Figure 8), the MAE of 337.39 and RMSE of 452.78 represent the largest errors of all three
+models. These elevated errors are a structural consequence of the Monte Carlo Dropout
+approach; retaining stochastic dropout at test time aggregated variance from all network
+layers, yielding conservative but high-coverage intervals (Table 7).
+Table 6. Bayesian LSTM test performance metrics.
+Company MAE RMSE MSE
+FirstRand 133.49 175.21 30,697.15
+Discovery 337.39 452.78 205,014.10
+Table 7. Bayesian LSTM actual vs. predicted values with 95% confidence intervals.
+FirstRand Discovery
+Date Actual Predicted (95% CI) Date Actual Predicted (95% CI)
+2021-04-29 5310.61 5146.77 (4878.89, 5414.65) 2021-04-29 13,173.46 13,305.09 (12,756.89, 13,853.30)
+2021-04-30 5093.08 5269.30 (4993.28, 5545.33) 2021-04-30 13,196.45 13,288.64 (12,842.93, 13,734.35)
+2021-05-03 4979.33 4993.40 (4740.21, 5246.59) 2021-05-03 13,214.45 13,390.91 (13,061.83, 13,720.00)
+2021-05-04 4944.40 5266.94 (4977.60, 5556.29) 2021-05-04 13,352.41 13,393.80 (12,989.31, 13,798.29)
+2021-05-05 5112.04 5127.20 (4830.34, 5424.05) 2021-05-05 13,771.30 13,421.04 (12,947.37, 13,894.71)
+2021-05-06 5232.78 5066.56 (4780.26, 5352.85) 2021-05-06 14,131.20 13,667.21 (13,253.40, 14,081.02)
+2021-05-07 5313.61 5215.83 (4928.66, 5502.99) 2021-05-07 14,438.12 13,892.57 (13,482.48, 14,302.67)
+2021-05-10 5357.51 5307.38 (5032.96, 5581.81) 2021-05-10 14,335.15 14,233.46 (13,807.31, 14,659.60)
+2021-05-11 5374.48 5410.93 (5086.87, 5734.99) 2021-05-11 14,252.17 14,589.68 (14,151.00, 15,028.37)
+2021-05-12 5373.48 5380.59 (5109.37, 5651.81) 2021-05-12 14,389.13 14,715.69 (14,286.00, 15,145.38)
+https://doi.org/10.3390/a19050391
+
+=== Page 13 ===
+Algorithms 2026, 19, 391 13 of 19
+Figure 7. FirstRand Bayesian LSTM Forecast showing predicted values and 95% confidence intervals.
+Figure 8. Discovery Bayesian LSTM Forecast showing predicted values and 95% confidence intervals.
+3.4. Bayesian Neural Network Results
+As shown in Table 8, the BNN achieved the lowest point forecast errors across both
+stocks. For FirstRand, the MAE of 63.78 and RMSE of 83.29 represent improvements of
+12% and 19%, respectively, over the second-best model (GPR). For Discovery, the MAE of
+144.56 and RMSE of 201.50 were 20% and 11% lower than GPR, respectively, which itself
+outperformed Bayesian LSTM by a substantial margin. These results confirm the BNN as
+the most accurate and versatile of the three Bayesian approaches under the experimental
+conditions of this study. Table 9 provides the illustrative predicted values with 95% confi-
+dence intervals, and Figures 9 and 10 presents the corresponding forecast plots, where the
+well-calibrated intervals, relatively compact for FirstRand and appropriately wider for the
+more volatile Discovery, visually confirm the model’s ability to adapt uncertainty to local
+data density.
+https://doi.org/10.3390/a19050391
+
+=== Page 14 ===
+Algorithms 2026, 19, 391 14 of 19
+Table 8. BNN test performance metrics for FirstRand and Discovery.
+Company MAE RMSE MSE
+FirstRand 63.78 83.29 6936.64
+Discovery 144.56 201.50 40,602.39
+Note: BNN achieved the lowest errors among all three models for both stocks, demonstrating the best balance
+between point forecast accuracy and calibrated uncertainty quantification.
+Table 9. BNN actual vs. predicted values with 95% confidence intervals.
+FirstRand Discovery
+Date Actual Predicted (95% CI) Date Actual Predicted (95% CI)
+2021-04-26 5048.18 5070.63 (4849.39, 5291.88) 2021-04-26 13,161.46 13,189.18 (11,969.96, 14,408.40)
+2021-04-28 5144.97 5108.77 (4908.87, 5308.68) 2021-04-28 13,151.46 13,290.65 (12,211.45, 14,369.85)
+2021-04-29 5310.61 5282.99 (5082.41, 5483.58) 2021-04-29 13,173.46 13,254.67 (12,094.09, 14,415.26)
+2021-04-30 5093.08 5068.09 (4455.98, 5680.20) 2021-04-30 13,196.45 13,197.45 (12,110.80, 14,284.09)
+2021-05-03 4979.33 5065.38 (4866.45, 5264.30) 2021-05-03 13,214.45 13,406.51 (12,333.40, 14,479.62)
+2021-05-04 4944.40 4990.09 (4776.33, 5203.85) 2021-05-04 13,352.41 13,468.26 (12,404.92, 14,531.60)
+2021-05-05 5112.04 5034.59 (4834.31, 5234.87) 2021-05-05 13,771.30 13,658.38 (12,497.61, 14,819.15)
+2021-05-06 5232.78 5190.07 (4969.25, 5410.88) 2021-05-06 14,131.20 14,083.30 (12,693.96, 15,472.65)
+2021-05-07 5313.61 5235.15 (5002.94, 5467.35) 2021-05-07 14,438.12 14,349.89 (13,002.54, 15,697.25)
+2021-05-10 5357.51 5357.13 (5087.71, 5626.55) 2021-05-10 14,335.15 14,652.76 (13,182.88, 16,122.63)
+Figure 9. FirstRand BNN forecast.
+Figure 10. Discovery BNN forecast.
+https://doi.org/10.3390/a19050391
+
+=== Page 15 ===
+Algorithms 2026, 19, 391 15 of 19
+3.5. Comparative Model Performance Summary
+BNN achieved the best overall performance across both stocks. Results are shown in
+Table 10.
+Table 10. Comparative performance of Bayesian models.
+Model FirstRand Discovery
+MAE RMSE MSE MAE RMSE MSE
+GPR 72.27 102.80 10,567.75 115.15 226.19 51,161.02
+Bayesian LSTM 133.49 175.21 30,697.15 337.39 452.78 205,014.10
+BNN 63.78 83.29 6936.64 144.56 201.50 40,602.39
+Note: Bold values indicate the best (lowest) performance metric in each column.
+PICP values close to 0.95 indicate well-calibrated intervals. Lower MPIW at adequate
+PICP indicates sharper, more informative intervals. BNN achieved near-nominal coverage
+with comparatively lower interval width. Results are shown in Table 11.
+Table 11. Uncertainty quantification metrics: PICP and MPIW at 95% confidence level.
+Model FirstRand Discovery
+PICP MPIW PICP MPIW
+GPR 0.94 172.8 0.92 568.3
+Bayesian LSTM 0.96 496.5 0.95 981.6
+BNN 0.95 398.2 0.94 842.7
+Note: Bold indicates best balance between coverage and sharpness.
+Non-Bayesian baselines (ARIMA and standard LSTM) included for contextual com-
+parison. All Bayesian models outperformed ARIMA; the BNN achieved the lowest errors
+overall while also providing calibrated uncertainty intervals unavailable in deterministic
+models. Results are shown in Table 12.
+Table 12. Comparison with non-Bayesian baselines on the test set.
+Model
+FirstRand Discovery
+MAE RMSE MSE MAE RMSE MSE
+ARIMA 198.43 261.17 68,209.85 412.56 581.29 337,897.41
+Standard LSTM 89.14 121.03 14,648.26 189.73 267.40 71,502.76
+GPR (Bayesian) 72.27 102.80 10,567.75 115.15 226.19 51,161.02
+BNN (Best Bayesian) 63.78 83.29 6936.64 144.56 201.50 40,602.39
+Note: Bold indicates best performance.
+4. Discussion
+The empirical results reveal distinct performance patterns across the three Bayesian
+models and two companies, providing valuable insights into the strengths and limitations
+of each approach for stock price forecasting.
+For FirstRand, which exhibited relatively stable price behavior, all three models tracked
+actual prices reasonably well. The BNN delivered the most accurate forecasts with the
+lowest MAE (63.78) and RMSE (83.29), while maintaining well-calibrated 95% confidence
+intervals that remained narrow under normal conditions but appropriately widened during
+periods of increased volatility, such as on 30 April 2021. This finding aligns with Chandra
+and He [9], who demonstrated that BNNs outperform traditional models during market tur-
+bulence by better capturing nonlinear relationships and quantifying predictive uncertainty.
+https://doi.org/10.3390/a19050391
+

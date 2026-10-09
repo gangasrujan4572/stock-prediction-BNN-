@@ -1,0 +1,17 @@
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.ipynb_checkpoints/
+
+# Temporary / Scratch
+scratch/
+extracted_paper_text.txt
+extracted_methods_results.txt
+*.log
