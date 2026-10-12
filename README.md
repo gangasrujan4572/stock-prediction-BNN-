@@ -117,8 +117,8 @@ pr/
 ├── plots.py                  # Matplotlib visualizer for Figures 1–10
 ├── generate_paper_results.py # Generates Tables 2–12, Figures 1–10, and comparison tables from real outputs
 ├── train_and_evaluate.py     # End-to-end 10-seed training and evaluation pipeline
-├── run_systematic_tuning.py  # Systematic hyperparameter search logging to tuning_log.csv
 ├── verify_reproduction.py    # Automated test suite auditing integrity and recomputing metrics
+├── MODEL_REPRODUCTION_MASTER_DOCUMENT.txt # Comprehensive technical & defense documentation
 ├── paper_settings.md         # Reference specifications: stated vs unstated paper settings
 ├── paper_reported_results.csv # Published numbers from the original paper
 │
