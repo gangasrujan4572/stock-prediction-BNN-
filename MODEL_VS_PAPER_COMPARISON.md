@@ -2,7 +2,7 @@
 
 **Reference Paper:**  
 Nelufhangani, N., & Maposa, D. (2026). *Bayesian Deep Learning and Probabilistic Forecasting of Stock Prices*. **Algorithms**, 19(5), 391. [https://doi.org/10.3390/a19050391](https://doi.org/10.3390/a19050391)  
-Local PDF: [algorithms-19-00391.pdf](file:///c:/Users/ganga/OneDrive/Desktop/pr/algorithms-19-00391.pdf)
+Local PDF: [algorithms-19-00391.pdf](algorithms-19-00391.pdf)
 
 ---
 

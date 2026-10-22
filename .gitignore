@@ -14,4 +14,5 @@ __pycache__/
 scratch/
 extracted_paper_text.txt
 extracted_methods_results.txt
+extracted_paper_tables.txt
 *.log
